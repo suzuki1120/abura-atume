@@ -114,7 +114,11 @@ body.hurry #fTime .val{color:var(--shu);animation:pulse .5s infinite alternate}
 #openBtn{display:none;width:78px;height:78px;border-radius:50%;border:3px solid var(--paper);background:var(--shu);color:#fff;padding:0;
   font:400 19px/1 var(--disp);letter-spacing:.06em;touch-action:none;box-shadow:0 5px 0 var(--shu2),0 9px 16px rgba(0,0,0,.45)}
 #openBtn:active{transform:translateY(4px);box-shadow:0 1px 0 var(--shu2),0 3px 8px rgba(0,0,0,.45)}
-@media (pointer:coarse){ #openBtn{display:block} .desk{display:none!important} }
+#swapBtn{display:none;width:58px;height:58px;border-radius:50%;border:3px solid var(--paper);background:var(--sumi);color:var(--paper);padding:0;
+  font:400 14px/1.1 var(--disp);letter-spacing:.04em;touch-action:none;box-shadow:0 4px 0 #000,0 8px 14px rgba(0,0,0,.45)}
+#swapBtn:active{transform:translateY(3px);box-shadow:0 1px 0 #000,0 3px 8px rgba(0,0,0,.45)}
+#swapBtn:focus-visible{outline:3px solid var(--paper);outline-offset:2px}
+@media (pointer:coarse){ #openBtn,#swapBtn{display:block} .desk{display:none!important} }
 @media (pointer:fine){ .touch{display:none!important} }
 
 /* ---------- お知らせ（上寄せの短冊。盤面の中央は隠さない） ---------- */
@@ -237,6 +241,7 @@ body.hurry #fTime .val{color:var(--shu);animation:pulse .5s infinite alternate}
         <span class="bar"><u id="oBar"></u></span><span class="nx" id="oNext"></span></div>
       <div class="btns">
         <button id="muteBtn" type="button" aria-label="サウンドの切り替え" title="サウンド"></button>
+        <button id="swapBtn" type="button" aria-label="箸を持ち替える">持ち<br>替え</button>
         <button id="openBtn" type="button" aria-label="箸を開く">開く</button>
       </div>
     </div>
@@ -252,6 +257,7 @@ body.hurry #fTime .val{color:var(--shu);animation:pulse .5s infinite alternate}
     <div class="howto">
       <div><span class="k">寄せる</span><span>箸で油を押して寄せる。油どうしが触れるとくっついて大きくなる</span></div>
       <div><span class="k">開く</span><span class="desk">クリックかスペースを押す間は箸が開き、離すと閉じて挟み込む</span><span class="touch">右下の「開く」を押す間は箸が開き、離すと閉じて挟み込む</span></div>
+      <div><span class="k">向き</span><span><span class="desk">右クリックか Q キー</span><span class="touch">「持ち替え」ボタン</span>で箸を持ち替え、根本を右下と左下で切り替える。持ち替える間は箸が浮く</span></div>
       <div><span class="k">得点</span><span>終了したときの<b>いちばん大きい油の面積</b>が、そのまま点数になる</span></div>
       <div><span class="k r">注意</span><span>箸は<b>ゆっくり</b>動かす。速く動かすとスープから浮いて油に触れない。レンゲの予告が出たら、いちばん大きい油を円の外へ逃がす（すくわれた分だけ点数が減る）</span></div>
       <div><span class="k r">おまけ</span><span>赤い油を取り込むと、その油が<b>2倍</b>にふくらむ。金の油で<b>+3秒</b></span></div>
@@ -322,6 +328,7 @@ const TUNE = {
     dipSpeed: 650,    // この速さを下回った状態が dipDelay 秒続くと、箸がスープに戻る
     dipDelay: .08,
     open: 12, close: 8,   // 箸が開く速さ・閉じる速さ（閉じるのが速すぎると、挟んだ油がちぎれる）
+    swap: .3,         // 持ち替え（根本を右下⇔左下）にかかる秒数。この間は箸がスープから浮き、油に触れない
   },
   // warn / warnMin＝レンゲの予告から、すくうまでの秒数（時間が進むと warnMin まで短くなる）
   // lastStart＝残り時間がこの秒数を切ったら新しい予告を出さない（終了直前にすくわれて取り返せなくなるのを防ぐ）
@@ -931,8 +938,21 @@ const target = { x: 700, y: 620 };
 let gap = GAP_CLOSED, prevGap = GAP_CLOSED, pressed = false, openBtnHeld = false, touchMode = false;
 let lifted = false, calmT = 0, liftV = 0;   // lifted＝箸が速く動いていてスープから浮いている。liftV は描画用（0〜1）
 let lastSts = [], tipSpeed = 0;
-const DIR = (() => { const x = .45, y = .9, l = Math.hypot(x, y); return { x: x / l, y: y / l }; })();
-const PERP = { x: -DIR.y, y: DIR.x };
+// 箸の向き（先端から根本へ向かう向き）。R＝右手持ち（根本が右下）、L＝左手持ち（根本が左下）。選んだ向きは次回も使う
+const HAND_A = { R: Math.atan2(.9, .45), L: Math.atan2(.9, -.45) };
+let hand = (() => { try { return localStorage.getItem('aburaHand') === 'L' ? 'L' : 'R'; } catch (e) { return 'R'; } })();
+let handA = HAND_A[hand], swapT = 0;   // handA＝いまの角度（持ち替えの途中は R と L の間）。swapT＝持ち替えで箸を上げている残り秒数
+const DIR = { x: 0, y: 0 }, PERP = { x: 0, y: 0 };
+function setDir(a){ handA = a; DIR.x = Math.cos(a); DIR.y = Math.sin(a); PERP.x = -DIR.y; PERP.y = DIR.x; }
+setDir(handA);
+// 持ち替えの間は箸をスープから上げる（回る箸で油をなぎ払わないように。連打で油をかき回す使い方も防ぐ）
+function swapHand(){
+  if (paused) return;
+  hand = hand === 'R' ? 'L' : 'R';
+  try { localStorage.setItem('aburaHand', hand); } catch (e) {}
+  swapT = TUNE.stick.swap;
+  if (tip.on && state === 'play') sSwish();
+}
 
 const inBowl = (x, y, r) => Math.hypot(x - CX, y - CY) < R - r - 6;
 function isFree(x, y, r){ for (const p of drops) if (Math.hypot(p.x - x, p.y - y) < r + PR) return false; return true; }
@@ -1404,6 +1424,13 @@ function step(dt){
   else if (lifted){
     if (tsp < ST.dipSpeed){ calmT += dt; if (calmT >= ST.dipDelay) lifted = false; } else calmT = 0;
   }
+  // 持ち替え：箸を浮かせたまま角度を回し、回し終えてから戻す（剛体は浮いている間は無効なので、戻すときに新しい角度で置き直される）
+  const ha = HAND_A[hand];
+  if (handA !== ha){
+    const mv = dt * Math.abs(HAND_A.L - HAND_A.R) / (ST.swap * .8), d = ha - handA;
+    setDir(Math.abs(d) <= mv ? ha : handA + Math.sign(d) * mv);
+  }
+  if (swapT > 0 || handA !== ha){ swapT = Math.max(0, swapT - dt); lifted = true; calmT = 0; }
   const gv = (gap - prevGap) / dt / 2;
   const sts = tip.on && !lifted ? sticks() : [];
   for (const s of sts){
@@ -1897,7 +1924,9 @@ const isUi = e => e.target.closest && e.target.closest('button');
 window.addEventListener('pointermove', e => { if (!isUi(e) || e.pointerType !== 'touch') aim(e); });
 window.addEventListener('pointerdown', e => {
   if (isUi(e)) return;
-  aim(e); pressed = true;
+  aim(e);
+  if (e.button === 2){ swapHand(); return; }   // 右クリックで持ち替え
+  pressed = true;
 });
 window.addEventListener('pointerup', e => {
   pressed = false;
@@ -1914,6 +1943,7 @@ window.addEventListener('keydown', e => {
   }
   if (e.code === 'Space'){ if (!onBtn) e.preventDefault(); pressed = true; }
   if (e.repeat) return;
+  if (e.code === 'KeyQ'){ e.preventDefault(); swapHand(); }
   if ((e.code === 'Escape' || e.code === 'KeyP') && (state === 'play' || state === 'count')){ e.preventDefault(); setPaused(true); }
   if (enter && !onBtn && state === 'ready'){ e.preventDefault(); startGame(); }
   if ((e.code === 'KeyR' || (enter && !onBtn)) && state === 'over' && performance.now() - resultAt > 600){ e.preventDefault(); startGame(); }
@@ -1927,6 +1957,8 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) setPa
 const openBtn = $('openBtn');
 openBtn.addEventListener('pointerdown', e => { e.stopPropagation(); openBtnHeld = true; openBtn.setPointerCapture(e.pointerId); });
 ['pointerup', 'pointercancel'].forEach(t => openBtn.addEventListener(t, e => { e.stopPropagation(); openBtnHeld = false; }));
+const swapBtn = $('swapBtn');
+swapBtn.addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); swapHand(); });
 
 $('startBtn').addEventListener('click', startGame);
 $('retryBtn').addEventListener('click', () => { if (performance.now() - resultAt > 400) startGame(); });
