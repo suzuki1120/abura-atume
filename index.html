@@ -3,187 +3,288 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<title>FAT CHANCE / あぶらあつめ</title>
+<meta name="theme-color" content="#24160d">
+<title>あぶらあつめ / FAT CHANCE</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Yuji+Syuku&display=swap" rel="stylesheet">
 <style>
+/* ---------- 配色と書体（町のラーメン屋：木のカウンター、木札、貼り紙、朱のはんこ） ---------- */
 :root{
-  --bk:#0b0a09; --ow:#efe8da; --ow2:#b4ac9a; --mute:#7c7566; --red:#d7261c;
-  --disp:"Archivo Black","Arial Black","Helvetica Neue",Arial,sans-serif;
-  --jp:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,system-ui,sans-serif;
+  --wood:#3a2415; --wood2:#24160d;          /* カウンター */
+  --plank:#e9d6ab; --paper:#f3e9d2;         /* 木札の地、紙の地 */
+  --sumi:#1c1612; --sumi2:#5a4d3e;          /* 墨、薄墨 */
+  --shu:#c9331f; --shu2:#96210f;            /* 朱 */
+  --ai:#3f6480; --kin:#e0a83a;              /* 藍（丼の雷文と同じ系統）、油の色 */
+  --disp:"Dela Gothic One","Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;   /* 題字・数字・ボタン */
+  --fude:"Yuji Syuku","Hiragino Mincho ProN","Yu Mincho",YuMincho,serif;                                 /* 筆文字（見出し） */
+  --jp:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,system-ui,sans-serif;              /* 本文 */
+  --vh:100vh;
+  /* 画面の端の余白。ノッチのある端末では、その分だけ広げる */
+  --pt:max(12px,env(safe-area-inset-top,0px)); --pr:max(12px,env(safe-area-inset-right,0px));
+  --pb:max(12px,env(safe-area-inset-bottom,0px)); --pl:max(12px,env(safe-area-inset-left,0px));
 }
+@supports (height:100dvh){ :root{--vh:100dvh} }
 *{box-sizing:border-box}
-html,body{margin:0;height:100%;overflow:hidden;background:var(--bk);color:var(--ow);font-family:var(--jp);
+html,body{margin:0;height:100%;overflow:hidden;color:var(--paper);font-family:var(--jp);background:var(--wood2);
   touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
-/* ページ全体の粗いグレインと周辺減光（メニュー画面にもかかる） */
+/* 木のカウンター：左上からの明かり、木目、板の継ぎ目 */
+body{background:
+  radial-gradient(ellipse 75% 65% at 28% 16%,rgba(255,196,120,.17),transparent 70%),
+  repeating-linear-gradient(179.5deg,rgba(0,0,0,0) 0 19px,rgba(0,0,0,.11) 19px 20px,rgba(0,0,0,0) 20px 47px,rgba(255,225,180,.04) 47px 49px,rgba(0,0,0,0) 49px 83px),
+  repeating-linear-gradient(180deg,transparent 0 197px,rgba(0,0,0,.3) 197px 199px,rgba(255,220,170,.05) 199px 200px),
+  linear-gradient(180deg,#452b18,var(--wood) 45%,#2b190e)}
+/* ページ全体の粗い粒状感と周辺の暗がり（メニュー画面にもかかる） */
 body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:50;opacity:.035;mix-blend-mode:screen;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   background-size:200px 200px}
 body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:49;
-  background:radial-gradient(ellipse 85% 80% at 50% 50%,transparent 50%,rgba(0,0,0,.55) 100%)}
-#app{height:100%;display:flex;align-items:center;justify-content:center;padding:12px}
-#wrap{width:min(100%,calc(100vh - 24px));width:min(100%,calc(100dvh - 24px));position:relative}
+  background:radial-gradient(ellipse 85% 80% at 50% 50%,transparent 55%,rgba(10,5,2,.45) 100%)}
 
-/* ---------- 盤面 ---------- */
-#stage{position:relative;width:100%;aspect-ratio:1;touch-action:none;background:#000}
+/* ---------- 配置：画面の縦横比で3通りに切り替える ----------
+   中間（既定）＝木札を盤面の四隅に重ねる ／ 横長＝盤面の左右に木札の列 ／ 縦長＝盤面の上下に木札の行
+   --s＝盤面の一辺、--vf＝木札の数字の大きさ、--lf＝木札の見出しの大きさ */
+#app{height:100%;display:flex;align-items:center;justify-content:center;padding:var(--pt) var(--pr) var(--pb) var(--pl)}
+#wrap{--aw:calc(100vw - var(--pl) - var(--pr)); --ah:calc(var(--vh) - var(--pt) - var(--pb)); --gap:12px;
+  --s:min(var(--aw),var(--ah)); --vf:clamp(20px,calc(var(--s)*.052),34px); --lf:clamp(13px,calc(var(--s)*.026),16px);
+  display:grid;grid-template-columns:var(--s);grid-template-rows:var(--s)}
+#stage{grid-area:1/1}
+.rail{grid-area:1/1;z-index:3;pointer-events:none;display:flex;justify-content:space-between;gap:10px;padding:10px;min-width:0}
+.rail.a{align-self:start;align-items:flex-start}
+.rail.b{align-self:end;align-items:flex-end}
+#fTime{min-width:calc(var(--vf)*3.7)} #fScore{min-width:calc(var(--vf)*5.4)}
+@media (min-aspect-ratio:3/2){
+  #wrap{--railw:clamp(150px,17vw,230px); --s:min(var(--ah),calc(var(--aw) - 2*var(--railw) - 2*var(--gap)));
+    --vf:clamp(22px,2.6vw,36px); --lf:16px;
+    grid-template-columns:var(--railw) var(--s) var(--railw);column-gap:var(--gap)}
+  #stage{grid-area:1/2}
+  .rail.a,.rail.b{flex-direction:column;justify-content:flex-start;align-self:stretch;align-items:stretch;padding:0;gap:12px}
+  .rail.a{grid-area:1/1} .rail.b{grid-area:1/3}
+  .rail.b .btns{margin-top:auto}
+}
+@media (max-aspect-ratio:4/5){
+  #wrap{--top:78px; --bot:100px; --s:min(var(--aw),calc(var(--ah) - var(--top) - var(--bot) - 2*var(--gap)));
+    --vf:clamp(22px,7vw,32px); --lf:clamp(13px,3.8vw,16px);
+    grid-template-rows:var(--top) var(--s) var(--bot);row-gap:var(--gap)}
+  .rail.a,.rail.b{padding:0;align-self:stretch;align-items:stretch}
+  .rail.a{grid-area:1/1} #stage{grid-area:2/1} .rail.b{grid-area:3/1}
+  .rail.a .fuda{flex:1} .rail.a #fTime{flex:0 0 36%}
+  .rail.b .fuda{flex:1}
+  .rail.b .btns{align-items:center}
+}
+
+/* ---------- 盤面（カウンターに置いた塗りのお盆） ---------- */
+#stage{position:relative;width:var(--s);height:var(--s);touch-action:none;background:#0c0908;border-radius:3.2%;overflow:hidden;
+  box-shadow:0 0 0 1px #050302,0 18px 38px rgba(0,0,0,.6),0 3px 6px rgba(0,0,0,.55)}
 #view{position:absolute;inset:0;will-change:transform}
 canvas{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:none;touch-action:none}
 #fx.off{display:none}
+/* 残り時間の帯（お盆の上辺） */
+.tbar{position:absolute;left:0;right:0;top:0;height:4px;z-index:3;background:rgba(243,233,210,.14)}
+.tbar i{display:block;height:100%;width:100%;background:var(--paper);transform-origin:left;will-change:transform}
+body.hurry .tbar i{background:var(--shu)}
 
-/* ---------- HUD（残り時間・スコア） ---------- */
-.hud{position:absolute;z-index:3;pointer-events:none;display:flex;flex-direction:column;gap:4px}
-.hud.tl{left:12px;top:12px} .hud.tr{right:12px;top:12px;align-items:flex-end}
-.lab{display:inline-block;background:var(--red);color:#fff;font:italic 11px/1 var(--disp);letter-spacing:.12em;padding:5px 7px 4px;text-transform:uppercase}
-.val{font:italic clamp(28px,7vw,40px)/1 var(--disp);letter-spacing:-.01em;color:var(--ow);font-variant-numeric:tabular-nums;
-  text-shadow:0 2px 0 #000,0 0 16px rgba(0,0,0,.7)}
-.hud .val small{font-size:.5em;margin-left:3px;color:var(--ow2)}
-body.hurry .hud.tl .val{color:#ff4a3a;animation:pulse .5s infinite alternate}
+/* ---------- 木札（のこり・得点・いちばん大きい油） ---------- */
+.fuda{position:relative;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:4px;min-width:0;
+  padding:15px 12px 9px;color:var(--sumi);border-radius:3px;
+  background:
+    repeating-linear-gradient(178.6deg,rgba(125,84,32,0) 0 6px,rgba(125,84,32,.09) 6px 7px,rgba(125,84,32,0) 7px 17px),
+    linear-gradient(180deg,#f2e2bd,var(--plank) 50%,#d8bf8c);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.55),inset 0 -2px 0 rgba(96,60,22,.28),0 6px 14px rgba(0,0,0,.45),0 1px 2px rgba(0,0,0,.5)}
+.fuda::before{content:"";position:absolute;left:50%;top:5px;width:6px;height:6px;margin-left:-3px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#6b4a2a,#20140b 70%)}   /* 鋲 */
+.lab{font:400 var(--lf)/1 var(--fude);letter-spacing:.1em;color:var(--sumi2);white-space:nowrap}
+.val{display:flex;align-items:baseline;font:400 var(--vf)/1 var(--disp);color:var(--sumi);white-space:nowrap;font-variant-numeric:tabular-nums}
+.val small{font:700 .42em/1 var(--jp);margin-left:.3em;color:var(--sumi2)}
+body.hurry #fTime .val{color:var(--shu);animation:pulse .5s infinite alternate}
 @keyframes pulse{to{opacity:.45}}
-.tbar{position:absolute;left:0;right:0;top:0;height:3px;z-index:3;background:rgba(255,255,255,.12)}
-.tbar i{display:block;height:100%;width:100%;background:var(--ow);transform-origin:left;will-change:transform}
-body.hurry .tbar i{background:var(--red)}
+.fuda.oil .val{font-size:calc(var(--vf)*.82)}
+.fuda.oil .bar{display:block;width:100%;min-width:118px;height:6px;border-radius:3px;background:rgba(28,22,18,.2);overflow:hidden}
+.fuda.oil .bar u{display:block;height:100%;width:100%;background:linear-gradient(90deg,#c4861c,var(--kin));transform-origin:left;transform:scaleX(0)}
+.fuda.oil .nx{font:700 12px/1 var(--jp);letter-spacing:.04em;color:var(--sumi2);white-space:nowrap}
 
-/* ---------- 左下：いちばん大きい油の直径と、次の段階までの目安 ---------- */
-.oilhud{position:absolute;left:12px;bottom:12px;z-index:3;pointer-events:none;display:flex;flex-direction:column;gap:5px;align-items:flex-start}
-.oilhud .val{font-size:clamp(22px,5.4vw,30px)}
-.oilhud .val small{font-size:.5em;margin-left:3px;color:var(--ow2)}
-.oilhud .bar{width:clamp(110px,26vw,160px);height:4px;background:rgba(255,255,255,.18)}
-.oilhud .bar u{display:block;height:100%;width:100%;background:var(--ow);transform-origin:left;transform:scaleX(0)}
-.oilhud .nx{font:700 11px/1 var(--jp);letter-spacing:.06em;color:var(--ow2);text-shadow:0 1px 0 #000}
-
-/* ---------- お知らせ（上寄せの小さな帯。盤面の中央は隠さない） ---------- */
-#banner{position:absolute;left:0;right:0;top:60px;display:flex;justify-content:center;pointer-events:none;z-index:5}
-.bn{display:flex;flex-direction:column;align-items:center;gap:5px;background:rgba(11,10,9,.84);border:2px solid var(--ow);padding:8px 14px 7px;
-  animation:bnIn 1.5s ease-out forwards}
-.bn b{font:italic clamp(18px,4.6vw,26px)/1 var(--disp);color:var(--ow);letter-spacing:.03em}
-.bn small{font:700 clamp(11px,2.5vw,13px)/1 var(--jp);color:var(--ow2);letter-spacing:.08em;white-space:nowrap}
-.bn.warn{border-color:var(--red)} .bn.warn b{color:#ff5a4a}
-@keyframes bnIn{0%{opacity:0;transform:translateY(-8px)}8%{opacity:1;transform:none}82%{opacity:1}100%{opacity:0}}
-/* 開始と終了の合図だけは中央に大きく出す */
-.bn.big{margin-top:24%;background:none;border:0;padding:0;animation-duration:1.1s}
-.bn.big b{font-size:clamp(44px,12vw,92px);text-shadow:0 4px 0 #000,0 0 30px rgba(0,0,0,.85)}
-
-#muteBtn{position:absolute;right:12px;bottom:12px;z-index:4;width:36px;height:36px;border:2px solid var(--ow);background:rgba(0,0,0,.55);
-  color:var(--ow);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
-#muteBtn svg{width:18px;height:18px}
-#muteBtn:focus-visible{outline:2px solid var(--red);outline-offset:2px}
-#openBtn{display:none;position:absolute;right:12px;bottom:58px;width:78px;height:78px;border-radius:50%;z-index:4;
-  border:3px solid var(--ow);background:var(--red);color:#fff;font:italic 15px/1 var(--disp);letter-spacing:.1em;touch-action:none}
-#openBtn:active{background:var(--ow);color:#000}
-@media (max-width:480px){ .hud.tl{left:8px;top:8px} .hud.tr{right:8px;top:8px} .oilhud{left:8px;bottom:8px} }
+/* ---------- 盤面の外のボタン（音・箸を開く） ---------- */
+.btns{display:flex;gap:10px;align-items:flex-end}
+.btns button{pointer-events:auto}
+#muteBtn{width:44px;height:44px;border:0;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;color:var(--sumi);
+  background:linear-gradient(180deg,#f2e2bd,var(--plank) 50%,#d8bf8c);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.55),inset 0 -2px 0 rgba(96,60,22,.28),0 6px 14px rgba(0,0,0,.45),0 1px 2px rgba(0,0,0,.5)}
+#muteBtn svg{width:20px;height:20px}
+#muteBtn:focus-visible,#openBtn:focus-visible{outline:3px solid var(--paper);outline-offset:2px}
+#openBtn{display:none;width:78px;height:78px;border-radius:50%;border:3px solid var(--paper);background:var(--shu);color:#fff;padding:0;
+  font:400 19px/1 var(--disp);letter-spacing:.06em;touch-action:none;box-shadow:0 5px 0 var(--shu2),0 9px 16px rgba(0,0,0,.45)}
+#openBtn:active{transform:translateY(4px);box-shadow:0 1px 0 var(--shu2),0 3px 8px rgba(0,0,0,.45)}
 @media (pointer:coarse){ #openBtn{display:block} .desk{display:none!important} }
-@media (max-aspect-ratio:4/5){ .oilhud{top:calc(100% + 14px);bottom:auto} #openBtn{top:calc(100% + 14px);bottom:auto} #muteBtn{top:calc(100% + 104px);bottom:auto} }
 @media (pointer:fine){ .touch{display:none!important} }
 
-/* ---------- オーバーレイ（タイトル・結果） ---------- */
-.overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;z-index:10;background:rgba(7,6,5,.88)}
-.overlay[hidden]{display:none}
-.card{position:relative;width:100%;max-width:440px;max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px);overflow:auto;
-  text-align:center;padding:26px 24px 22px;background:var(--bk);border:2px solid var(--ow);animation:cardIn .35s cubic-bezier(.2,1,.3,1)}
-.card::after{content:"";position:absolute;inset:6px;border:1px solid rgba(239,232,218,.22);pointer-events:none}
-@keyframes cardIn{from{opacity:0;transform:translateY(14px)}}
-.title{font:italic clamp(48px,14vw,76px)/.86 var(--disp);letter-spacing:-.035em;color:var(--ow);margin:4px 0 0;text-align:left;display:inline-block}
-.title span{display:block}
-.title .ul{position:relative} .title .ul::after{content:"";position:absolute;left:.05em;right:.1em;bottom:-.08em;height:.09em;background:var(--red)}
-.tag{display:inline-block;margin-top:14px;background:var(--red);color:#fff;font:italic 12px/1 var(--disp);letter-spacing:.2em;padding:7px 10px 6px}
-.tagline{font-size:12.5px;color:var(--ow2);margin:12px 0 0;letter-spacing:.08em;line-height:1.6}
-.howto{display:grid;gap:8px;margin:18px 0 0;text-align:left}
-.howto div{display:grid;grid-template-columns:74px 1fr;gap:10px;align-items:center;font-size:12.5px;line-height:1.55;color:var(--ow)}
-.howto kbd{font:italic 11px/1 var(--disp);letter-spacing:.1em;text-align:center;padding:7px 0 6px;background:var(--ow);color:#000;display:block}
-.howto kbd.r{background:var(--red);color:#fff}
-.howto b{color:#fff;font-weight:700}
-.btn{margin-top:20px;border:0;cursor:pointer;font:italic 26px/1 var(--disp);letter-spacing:.14em;padding:15px 36px 12px 40px;color:#fff;background:var(--red);
-  transition:transform .08s,background .15s,color .15s}
-.btn:hover{background:var(--ow);color:#000} .btn:active{transform:scale(.97)}
-.btn:focus-visible{outline:2px solid var(--ow);outline-offset:3px}
-.btn:disabled{opacity:.4;cursor:default}
-.btn small{font:italic 11px/1 var(--disp);letter-spacing:.14em;opacity:.7;margin-left:12px}
-.meta{display:flex;justify-content:center;gap:22px;margin-top:14px;font:italic 12px/1 var(--disp);letter-spacing:.16em;color:var(--ow2)}
-.meta b{color:var(--ow);font-weight:400;margin-left:6px}
+/* ---------- お知らせ（上寄せの短冊。盤面の中央は隠さない） ---------- */
+#banner{position:absolute;left:0;right:0;top:7%;display:flex;justify-content:center;pointer-events:none;z-index:5}
+.bn{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 18px 9px;border-radius:2px;color:var(--sumi);
+  background:linear-gradient(180deg,#f8f0de,var(--paper));box-shadow:0 6px 16px rgba(0,0,0,.5),inset 0 0 0 1px rgba(28,22,18,.18);
+  animation:bnIn 1.5s ease-out forwards}
+.bn b{font:400 clamp(19px,calc(var(--s)*.046),28px)/1 var(--disp);letter-spacing:.06em}
+.bn small{font:700 clamp(12px,calc(var(--s)*.024),13px)/1 var(--jp);color:var(--sumi2);letter-spacing:.06em;white-space:nowrap}
+.bn.warn{background:var(--shu);color:#fff;box-shadow:0 6px 16px rgba(0,0,0,.5),inset 0 0 0 1px rgba(255,255,255,.25)}
+.bn.warn small{color:rgba(255,255,255,.92)}
+@keyframes bnIn{0%{opacity:0;transform:translateY(-8px)}8%{opacity:1;transform:none}82%{opacity:1}100%{opacity:0}}
+@keyframes bnFade{0%{opacity:0}8%{opacity:1}82%{opacity:1}100%{opacity:0}}
+/* 開始と終了の合図だけは中央に大きく出す */
+.bn.big{margin-top:24%;background:none;box-shadow:none;padding:0;color:var(--paper);animation-duration:1.1s}
+.bn.big b{font-size:clamp(46px,calc(var(--s)*.15),108px);letter-spacing:.04em;text-shadow:0 4px 0 #1a0d06,0 0 30px rgba(0,0,0,.85)}
 
-.res-head{font:italic 12px/1 var(--disp);letter-spacing:.3em;color:var(--ow2)}
-.grade{font:italic clamp(120px,34vw,180px)/.85 var(--disp);color:var(--ow);display:inline-block;margin-top:8px;padding:0 .1em;
-  animation:gradeIn .5s .1s cubic-bezier(.2,1.4,.4,1) both}
-.grade.g-SS,.grade.g-S{color:var(--red)}
-.grade.g-C{color:var(--ow2)}
-@keyframes gradeIn{from{opacity:0;transform:scale(2)}}
-.rtitle{font:italic 18px/1 var(--disp);letter-spacing:.12em;margin-top:8px}
-.rtitle small{display:block;font:12px/1 var(--jp);color:var(--ow2);margin-top:7px;letter-spacing:.14em}
-.total{margin-top:16px}
-.total small{display:block;font:italic 11px/1 var(--disp);letter-spacing:.3em;color:var(--ow2)}
-.total b{display:block;font:italic 56px/1 var(--disp);color:var(--ow);font-variant-numeric:tabular-nums;margin-top:6px}
-.total b small{display:inline;font-size:.4em;letter-spacing:0;margin-left:4px}   /* 数値の後ろに小さく添える単位 */
-.newrec{display:inline-block;margin-top:10px;font:italic 14px/1 var(--disp);letter-spacing:.2em;color:var(--red);border:2px solid var(--red);
-  padding:6px 10px 5px;transform:rotate(-4deg);animation:stamp .4s .9s cubic-bezier(.2,1.6,.4,1) both}
+/* ---------- オーバーレイ（タイトル・結果・一時停止）。後ろの丼をぼかして見せる ---------- */
+.overlay{position:fixed;inset:0;display:flex;overflow:auto;touch-action:pan-y;z-index:10;
+  padding:max(16px,var(--pt)) 16px max(16px,var(--pb));
+  background:radial-gradient(ellipse 90% 80% at 50% 40%,rgba(58,36,21,.64),rgba(14,8,4,.9));
+  -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+.overlay[hidden]{display:none}
+/* 紙（貼り紙）のカード */
+.card{position:relative;margin:auto;width:100%;max-width:430px;text-align:center;padding:20px 22px;color:var(--sumi);border-radius:3px;
+  background:linear-gradient(180deg,#f8f0de,var(--paper) 35%,#ecdfc3);
+  box-shadow:0 22px 50px rgba(0,0,0,.6),0 2px 5px rgba(0,0,0,.45);animation:cardIn .35s cubic-bezier(.2,1,.3,1)}
+@keyframes cardIn{from{opacity:0;transform:translateY(14px)}}
+
+/* のれん（題字） */
+.noren{position:relative;display:flex;align-items:flex-start;gap:3px;margin:0;padding-top:8px;font:400 clamp(30px,9.6vw,46px)/1 var(--disp);color:var(--paper)}
+.noren::before{content:"";position:absolute;left:-7px;right:-7px;top:0;height:9px;border-radius:5px;z-index:1;
+  background:linear-gradient(180deg,#c79a57,#8a5f2c 60%,#5e3d19);box-shadow:0 2px 3px rgba(0,0,0,.35)}   /* 竿 */
+.noren span{flex:1;padding:24px 0 26px;letter-spacing:.06em;text-indent:.06em;transform-origin:50% 0;
+  background:linear-gradient(180deg,#a22814 0,#d23a23 10%,var(--shu) 70%,#b52b17);animation:sway 4.6s ease-in-out infinite alternate}
+.noren span:nth-child(2){padding-bottom:32px;animation-delay:-1.5s}
+.noren span:nth-child(3){padding-bottom:22px;animation-delay:-3.1s}
+@keyframes sway{from{transform:skewX(-.8deg)}to{transform:skewX(.8deg)}}
+.sub{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:14px;font:700 11px/1 var(--jp);letter-spacing:.34em;text-indent:.34em;color:var(--ai)}
+.sub::before,.sub::after{content:"";height:1px;width:34px;background:currentColor;opacity:.6}
+.tagline{font-size:13px;color:var(--sumi);margin:12px 0 0;letter-spacing:.06em;line-height:1.7}
+
+/* お品書き（遊び方） */
+.menu-h{display:flex;align-items:baseline;justify-content:space-between;margin-top:16px;padding-bottom:7px;border-bottom:2px solid var(--sumi);
+  font:400 20px/1 var(--fude);letter-spacing:.16em;text-align:left}
+.menu-h small{font:700 11px/1 var(--jp);letter-spacing:.14em;color:var(--sumi2)}
+.howto{display:grid;margin:0;text-align:left}
+.howto div{display:grid;grid-template-columns:62px 1fr;gap:12px;align-items:center;padding:9px 0;font-size:13px;line-height:1.6;
+  border-bottom:1px dashed rgba(63,100,128,.6)}
+.howto .k{display:block;font:400 16px/1 var(--fude);letter-spacing:.06em;text-align:center;padding:8px 0 7px;border-radius:2px;background:var(--sumi);color:var(--paper)}
+.howto .k.r{background:var(--shu);color:#fff}
+.howto b{font-weight:700;color:var(--shu2)}
+
+/* 主ボタン（はじめる・おかわり・つづける） */
+.btn{display:inline-flex;align-items:center;gap:12px;margin-top:18px;border:0;border-radius:4px;cursor:pointer;color:#fff;background:var(--shu);
+  font:400 24px/1 var(--disp);letter-spacing:.14em;padding:14px 30px 13px 34px;
+  box-shadow:0 4px 0 var(--shu2),0 9px 16px rgba(0,0,0,.25);transition:transform .08s,box-shadow .08s,filter .15s}
+.btn:hover{filter:brightness(1.1)}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--shu2),0 3px 8px rgba(0,0,0,.25)}
+.btn:focus-visible{outline:3px solid var(--ai);outline-offset:3px}
+.btn:disabled{opacity:.45;cursor:default;filter:none}
+.btn small{font:700 10px/1 var(--jp);letter-spacing:.1em;padding:4px 5px 3px;border:1px solid rgba(255,255,255,.65);border-radius:3px}
+.meta{margin-top:14px;font:700 12px/1 var(--jp);letter-spacing:.08em;color:var(--sumi2)}
+.meta b{font:400 16px/1 var(--disp);color:var(--sumi);margin:0 4px 0 8px;font-variant-numeric:tabular-nums}
+
+/* 結果（伝票）。上下の端はギザギザに切った紙 */
+.slip{padding-top:24px;border-radius:0;box-shadow:none;filter:drop-shadow(0 18px 26px rgba(0,0,0,.55)) drop-shadow(0 2px 3px rgba(0,0,0,.4))}
+.slip::before,.slip::after{content:"";position:absolute;left:0;right:0;height:7px;background:
+  linear-gradient(to bottom right,transparent 50%,var(--zc) 51%) 0 0/14px 7px repeat-x,
+  linear-gradient(to bottom left,transparent 50%,var(--zc) 51%) 7px 0/14px 7px repeat-x}
+.slip::before{--zc:#f8f0de;top:-6.5px}
+.slip::after{--zc:#ecdfc3;bottom:-6.5px;transform:scaleY(-1)}
+.res-head{font:400 22px/1 var(--fude);letter-spacing:.5em;text-indent:.5em;padding-bottom:11px;border-bottom:3px double var(--sumi)}
+/* ランクの丸印（はんこ） */
+.hanko{display:inline-flex;align-items:center;justify-content:center;width:clamp(104px,31vw,132px);aspect-ratio:1;margin-top:16px;border-radius:50%;
+  border:5px solid var(--shu);color:var(--shu);font:400 clamp(58px,17.5vw,76px)/1 var(--fude);
+  box-shadow:inset 0 0 0 3px var(--paper),inset 0 0 0 4.5px var(--shu);transform:rotate(-6deg);opacity:.94;
+  animation:hankoIn .45s .15s cubic-bezier(.2,1.4,.4,1) both}
+.hanko.g-SS,.hanko.g-S{background:var(--shu);color:var(--paper);box-shadow:inset 0 0 0 3px var(--shu),inset 0 0 0 4.5px var(--paper)}
+.hanko.g-C{border-color:var(--sumi2);color:var(--sumi2);box-shadow:inset 0 0 0 3px var(--paper),inset 0 0 0 4.5px var(--sumi2)}
+@keyframes hankoIn{from{opacity:0;transform:rotate(-6deg) scale(2)}}
+.rtitle{font:400 26px/1 var(--fude);letter-spacing:.12em;text-indent:.12em;margin-top:12px}
+.rtitle small{display:block;font:700 11px/1 var(--jp);color:var(--ai);margin-top:8px;letter-spacing:.3em;text-indent:.3em}
+.total{display:flex;align-items:baseline;justify-content:space-between;margin-top:16px;padding:11px 2px 9px;border-top:2px solid var(--sumi);border-bottom:2px solid var(--sumi)}
+.total > small{font:400 18px/1 var(--fude);letter-spacing:.1em}
+.total b{display:flex;align-items:baseline;font:400 clamp(34px,10.5vw,46px)/1 var(--disp);font-variant-numeric:tabular-nums}
+.total b small{font:700 .32em/1 var(--jp);margin-left:5px;color:var(--sumi2)}   /* 数値の後ろに小さく添える単位 */
+.newrec{display:inline-block;margin-top:12px;font:400 18px/1 var(--fude);letter-spacing:.3em;text-indent:.3em;color:var(--shu);border:2.5px solid var(--shu);border-radius:3px;
+  padding:7px 10px 6px;transform:rotate(-4deg);animation:stamp .4s .9s cubic-bezier(.2,1.6,.4,1) both}
 .newrec[hidden]{display:none}
 @keyframes stamp{from{opacity:0;transform:rotate(-4deg) scale(2.2)}}
-.breakdown{margin:16px 0 0}
-.breakdown div{display:flex;justify-content:space-between;align-items:baseline;padding:7px 2px;border-bottom:1px solid rgba(239,232,218,.15)}
-.breakdown dt{color:var(--ow2);font:italic 11px/1 var(--disp);letter-spacing:.16em}
-.breakdown dd{margin:0;font:italic 20px/1 var(--disp);color:var(--ow);font-variant-numeric:tabular-nums}
-.next{font-size:12px;color:var(--ow2);margin:12px 0 0;min-height:1.4em;letter-spacing:.06em}
-.paused{font:italic 34px/1 var(--disp);letter-spacing:.08em;margin:0}
+.breakdown{margin:12px 0 0}
+.breakdown div{display:flex;justify-content:space-between;align-items:baseline;padding:8px 2px;border-bottom:1px dashed rgba(63,100,128,.6)}
+.breakdown dt{font:700 13px/1 var(--jp);color:var(--sumi2);letter-spacing:.04em}
+.breakdown dd{margin:0;font:400 17px/1 var(--disp);color:var(--sumi);font-variant-numeric:tabular-nums}
+.next{font-size:12.5px;color:var(--sumi2);margin:12px 0 0;min-height:1.4em;letter-spacing:.04em}
+.paused{font:400 40px/1 var(--fude);letter-spacing:.16em;text-indent:.16em;margin:6px 0 0}
+
+/* 動きを減らす設定の端末では、拡大や移動の演出を止める */
+@media (prefers-reduced-motion:reduce){
+  .card,.hanko,.newrec,.noren span{animation:none!important}
+  .bn{animation-name:bnFade}
+}
 </style>
 </head>
 <body>
 <div id="app">
   <div id="wrap">
+    <div class="rail a">
+      <div class="fuda" id="fTime"><span class="lab">のこり</span><b class="val"><span id="hTime">60</span><small>秒</small></b></div>
+      <div class="fuda" id="fScore"><span class="lab">得点</span><b class="val"><span id="hScore">0</span><small>mm²</small></b></div>
+    </div>
     <div id="stage">
       <div id="view"><canvas id="gl"></canvas><canvas id="fx"></canvas></div>
       <div class="tbar"><i id="tFill"></i></div>
-      <div class="hud tl"><span class="lab">Time</span><b class="val" id="hTime">60</b></div>
-      <div class="hud tr"><span class="lab">Score</span><b class="val"><span id="hScore">0</span><small>mm²</small></b></div>
-      <div class="oilhud"><span class="lab">Biggest oil</span><b class="val"><span id="hOil">0.0</span><small>mm</small></b>
-        <span class="bar"><u id="oBar"></u></span><span class="nx" id="oNext"></span></div>
       <div id="banner"></div>
-      <button class="icon-btn" id="muteBtn" type="button" aria-label="サウンドの切り替え" title="サウンド"></button>
-      <button id="openBtn" type="button">OPEN</button>
+    </div>
+    <div class="rail b">
+      <div class="fuda oil"><span class="lab">いちばん大きい油</span><b class="val"><span id="hOil">0.0</span><small>mm</small></b>
+        <span class="bar"><u id="oBar"></u></span><span class="nx" id="oNext"></span></div>
+      <div class="btns">
+        <button id="muteBtn" type="button" aria-label="サウンドの切り替え" title="サウンド"></button>
+        <button id="openBtn" type="button" aria-label="箸を開く">開く</button>
+      </div>
     </div>
   </div>
 </div>
 
 <div class="overlay" id="startOv">
   <div class="card">
-    <h1 class="title"><span>FAT</span><span class="ul">CHANCE</span></h1>
-    <div><span class="tag">ABURA ATSUME</span></div>
+    <h1 class="noren" aria-label="あぶらあつめ"><span>あぶ</span><span>らあ</span><span>つめ</span></h1>
+    <div class="sub">FAT CHANCE</div>
     <p class="tagline">ラーメンの油を、箸でひとつにまとめろ。<br>制限時間は60秒。</p>
+    <div class="menu-h">お品書き<small>遊び方</small></div>
     <div class="howto">
-      <div><kbd class="desk">MOVE</kbd><kbd class="touch">DRAG</kbd><span>箸で油を押して寄せる。油どうしが触れるとくっついて大きくなる</span></div>
-      <div><kbd class="desk">HOLD</kbd><kbd class="touch">OPEN</kbd><span class="desk">クリックかスペースを押す間は箸が開き、離すと閉じて挟み込む</span><span class="touch">右下のOPENを押す間は箸が開き、離すと閉じて挟み込む</span></div>
-      <div><kbd>SCORE</kbd><span>終了したときの<b>いちばん大きい油の面積</b>が、そのまま点数になる</span></div>
-      <div><kbd class="r">CAUTION</kbd><span>箸は<b>ゆっくり</b>動かす。速く動かすとスープから浮いて油に触れない。レンゲの予告が出たら、いちばん大きい油を円の外へ逃がす（すくわれた分だけ点数が減る）</span></div>
-      <div><kbd class="r">BONUS</kbd><span>赤い油を取り込むと、その油が<b>2倍</b>にふくらむ。金の油で<b>+3秒</b></span></div>
+      <div><span class="k">寄せる</span><span>箸で油を押して寄せる。油どうしが触れるとくっついて大きくなる</span></div>
+      <div><span class="k">開く</span><span class="desk">クリックかスペースを押す間は箸が開き、離すと閉じて挟み込む</span><span class="touch">右下の「開く」を押す間は箸が開き、離すと閉じて挟み込む</span></div>
+      <div><span class="k">得点</span><span>終了したときの<b>いちばん大きい油の面積</b>が、そのまま点数になる</span></div>
+      <div><span class="k r">注意</span><span>箸は<b>ゆっくり</b>動かす。速く動かすとスープから浮いて油に触れない。レンゲの予告が出たら、いちばん大きい油を円の外へ逃がす（すくわれた分だけ点数が減る）</span></div>
+      <div><span class="k r">おまけ</span><span>赤い油を取り込むと、その油が<b>2倍</b>にふくらむ。金の油で<b>+3秒</b></span></div>
     </div>
     <p class="next" id="loadErr" hidden>物理エンジン（vendor/liquidfun）を読み込めませんでした。index.html と同じ場所に vendor フォルダがあるか確認してください。</p>
-    <button class="btn" id="startBtn" type="button" disabled>START<small class="desk">ENTER</small></button>
-    <div class="meta"><span>BEST<b id="tBest">0</b> mm²</span></div>
+    <button class="btn" id="startBtn" type="button" disabled>はじめる<small class="desk">ENTER</small></button>
+    <div class="meta">これまでの最高<b id="tBest">0</b>mm²</div>
   </div>
 </div>
 
 <div class="overlay" id="endOv" hidden>
-  <div class="card">
-    <div class="res-head">RESULT</div>
-    <div class="grade" id="rGrade">A</div>
-    <div class="rtitle" id="rTitle">SLICK<small>油職人</small></div>
-    <div class="total"><small>OIL AREA</small><b><span id="rTotal">0</span><small>mm²</small></b></div>
-    <div class="newrec" id="rNew" hidden>NEW RECORD</div>
+  <div class="card slip">
+    <div class="res-head">お会計</div>
+    <div class="hanko" id="rGrade">上</div>
+    <div class="rtitle" id="rTitle">油職人<small>SLICK</small></div>
+    <div class="total"><small>油の広さ</small><b><span id="rTotal">0</span><small>mm²</small></b></div>
+    <div class="newrec" id="rNew" hidden>新記録</div>
     <dl class="breakdown">
-      <div><dt>LAST OIL</dt><dd id="rSize">0.0mm</dd></div>
-      <div><dt>DOUBLED</dt><dd id="rDouble">0 回</dd></div>
-      <div><dt>SPOON DODGED</dt><dd id="rSpoon">0 / 0</dd></div>
-      <div><dt>BEST</dt><dd id="rBest">0</dd></div>
+      <div><dt>最後の油</dt><dd id="rSize">0.0mm</dd></div>
+      <div><dt>2倍にした回数</dt><dd id="rDouble">0 回</dd></div>
+      <div><dt>レンゲをよけた回数</dt><dd id="rSpoon">0 / 0</dd></div>
+      <div><dt>これまでの最高</dt><dd id="rBest">0</dd></div>
     </dl>
     <p class="next" id="rNext"></p>
-    <button class="btn" id="retryBtn" type="button">RETRY<small class="desk">R</small></button>
+    <button class="btn" id="retryBtn" type="button">おかわり<small class="desk">R</small></button>
   </div>
 </div>
 
 <div class="overlay" id="pauseOv" hidden>
   <div class="card">
-    <p class="paused">PAUSED</p>
+    <p class="paused">ひとやすみ</p>
     <p class="tagline">一時停止中です。時間は進みません。</p>
-    <button class="btn" id="resumeBtn" type="button">RESUME<small class="desk">ESC</small></button>
+    <button class="btn" id="resumeBtn" type="button">つづける<small class="desk">ESC</small></button>
   </div>
 </div>
 
@@ -197,7 +298,8 @@ const MM = 180 / (2 * R);                              // 1座標あたりのmm�
 const H = 1 / 120;                                     // 物理の固定ステップ
 const STICK_LEN = 260, STICK_R = 5;                    // スープに浸かっている箸の長さと太さ
 const GAP_CLOSED = 14, GAP_OPEN = 150;
-const NUMFONT = '"Archivo Black","Arial Black",Impact,sans-serif';
+const NUMFONT = '"Dela Gothic One","Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic","Arial Black",sans-serif';   // 盤面（canvas）に描く文字の書体
+const C_PAPER = '243,233,210', C_SHU = '201,51,31';    // 盤面に描く表示の色（CSS の --paper / --shu と同じ）
 
 /* =====================================================================
    調整パラメータ（挙動を変えたいときはここだけ触る）
@@ -234,7 +336,8 @@ const TUNE = {
     goldTime: 3,                 // 金の油で延びる秒数
   },
   spawn: { iv0: .6, ivMin: .36, burstIv: [7, 10], burstN: [5, 9], cap: 700 },   // cap＝いちばん大きい油に入っていない粒がこの数に達したら、湧き出しを止める
-  grades: [['SS', 3500, 'GREASE GOD', '油の神'], ['S', 2000, 'FAT CAT', '背脂長者'], ['A', 1000, 'SLICK', '油職人'], ['B', 300, 'GREASY', '背脂見習い'], ['C', 0, 'WATERY', 'ただの浮き油']],   // 閾値は面積（mm²）
+  // 閾値は面積（mm²）。最後の1文字は、結果画面の丸印（はんこ）に出す漢字
+  grades: [['SS', 3500, 'GREASE GOD', '油の神', '極'], ['S', 2000, 'FAT CAT', '背脂長者', '特'], ['A', 1000, 'SLICK', '油職人', '上'], ['B', 300, 'GREASY', '背脂見習い', '並'], ['C', 0, 'WATERY', 'ただの浮き油', '薄']],
 };
 const BASE_TIME = TUNE.round.time;
 
@@ -299,10 +402,15 @@ function renderBg(){
   g.setTransform(scale, 0, 0, scale, 0, 0);
   const rnd = rng(7);
 
-  // テーブル（黒に近い、わずかに暖色）
-  let gr = g.createRadialGradient(CX - 60, CY - 120, 60, CX, CY, 800);
-  gr.addColorStop(0, '#2a2522'); gr.addColorStop(.5, '#141210'); gr.addColorStop(1, '#070605');
+  // 塗りのお盆（黒漆。左上から明かりが当たり、縁の内側に朱の細い線が入る）
+  let gr = g.createLinearGradient(0, 0, W, W);
+  gr.addColorStop(0, '#2c221d'); gr.addColorStop(.45, '#16110e'); gr.addColorStop(1, '#090605');
   g.fillStyle = gr; g.fillRect(0, 0, W, W);
+  gr = g.createRadialGradient(130, 90, 0, 130, 90, 540);
+  gr.addColorStop(0, 'rgba(255,214,170,.14)'); gr.addColorStop(1, 'rgba(255,214,170,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, W, W);
+  g.strokeStyle = `rgba(${C_SHU},.75)`; g.lineWidth = 3; g.beginPath(); g.roundRect(15, 15, W - 30, W - 30, 22); g.stroke();
+  g.strokeStyle = 'rgba(255,235,210,.07)'; g.lineWidth = 1.5; g.beginPath(); g.roundRect(22, 22, W - 44, W - 44, 16); g.stroke();
 
   // 丼の影
   g.save();
@@ -877,13 +985,13 @@ function spawnSpecial(kind){
   const big = largest();
   const avoid = big ? { x: big.cx, y: big.cy, r: big.r + clamp(220 - big.r * .8, 60, 220) } : null;   // 大きい油ほど、縁からの距離を詰めて置き場所を残す
   const out = spawnCluster(3, kind, { x: CX, y: CY, rad: R - 60, avoid });
-  if (out){ burst(out[0].x, out[0].y, 8, kind === 'red' ? '215,38,28' : '255,220,120', 220, 3); }
+  if (out){ burst(out[0].x, out[0].y, 8, kind === 'red' ? '201,51,31' : '255,220,120', 220, 3); }
   return out;
 }
 // 「いちばん大きい油」は、まとまった状態が続いて数え終えた大きさ（cn）で比べる。箸の前に一時的に寄っただけの塊は含めない
 function largest(){ let b = null; for (const B of blobs.values()) if (!b || B.cn > b.cn) b = B; return b; }
 function largestMM(){ const b = largest(); return b ? blobRadius(b.cn) * 2 * MM : 0; }
-function tierName(mm){ let n = 'DROP'; for (const t of TUNE.score.tiers) if (mm >= t[0]) n = t[1]; return n; }
+function tierName(mm){ let n = 'しずく'; for (const t of TUNE.score.tiers) if (mm >= t[0]) n = t[2]; return n; }
 
 function reset(){
   for (const p of drops) killDrop(p);
@@ -1161,12 +1269,12 @@ function special(type, B){
     doubling.push({ id: B.id, left: add, rate: Math.max(4, Math.ceil(add / (TUNE.score.doubleTime * 60))) });   // rate＝1フレームに足す粒数
     doubles++;
     const area = Math.round(add * AREA_MM2).toLocaleString();
-    banner('DOUBLE', add < B.n ? `丼がいっぱい　+${area} mm²` : `油が2倍にふくらむ　+${area} mm²`, 'warn');
-    burst(B.cx, B.cy, 18, '215,38,28', 420, 3);
+    banner('2倍', add < B.n ? `丼がいっぱい　+${area} mm²` : `油が2倍にふくらむ　+${area} mm²`, 'warn');
+    burst(B.cx, B.cy, 18, '201,51,31', 420, 3);
     sDouble();
   } else {
     timeLeft += S.goldTime;
-    banner('+' + S.goldTime + ' SEC', '金の油で時間が延びた', '');
+    banner('+' + S.goldTime + '秒', '金の油で時間が延びた', '');
     burst(B.cx, B.cy, 18, '255,225,130', 420, 3);
     sGold();
   }
@@ -1334,7 +1442,7 @@ function updateSpoon(dt){
     // 予告が出た時点の位置で固定する。予告の間に、いちばん大きい油を円の外へ押し出せば避けられる
     spoon = { phase: 'warn', t: 0, dur: Math.max(TUNE.spoon.warnMin, TUNE.spoon.warn - elapsed * .008), x: big.cx, y: big.cy, r: rand(100, 125), target: big.id, full: false };
     clampSpoon();
-    banner('WARNING', 'レンゲが来る　円の外へ油を逃がせ', 'warn');
+    banner('レンゲが来る', '円の外へ油を逃がせ', 'warn');
     sWarn();
     return;
   }
@@ -1367,10 +1475,10 @@ function scoop(){
   poke(sp.x, sp.y, sp.r * 1.1, 2.2);
   fluidImpulse(sp.x, sp.y, sp.r * 2.2, q => -260 * (1 - q));
   shake = Math.max(shake, 3); sScoop();
-  if (lostT > 0){ spoonHit++; banner('SCOOPED', `すくわれた　−${Math.round(lostT * AREA_MM2).toLocaleString()} mm²`, 'warn'); }
+  if (lostT > 0){ spoonHit++; banner('すくわれた', `−${Math.round(lostT * AREA_MM2).toLocaleString()} mm²`, 'warn'); }
   else if (tgt){
     spoonSafe++;
-    banner('SAFE', 'レンゲを回避', '');
+    banner('よけた', 'レンゲを回避', '');
     sDodge();
   }
 }
@@ -1379,8 +1487,8 @@ function scoop(){
 function checkTiers(){
   const mm = blobRadius(bestLv) * 2 * MM, T = TUNE.score.tiers;
   while (tierIdx < T.length && mm >= T[tierIdx][0]){
-    const [tmm, en, jp] = T[tierIdx]; tierIdx++;
-    banner(en, `${jp}に成長　直径${tmm}mm`, '');
+    const [tmm, , jp] = T[tierIdx]; tierIdx++;
+    banner(jp, `直径${tmm}mmに成長`, '');
     const big = largest();
     if (big){ burst(big.cx, big.cy, 16, '240,225,190', 420, 3); poke(big.cx, big.cy, big.r + 24, -1); }
     sLevel(tierIdx);
@@ -1397,7 +1505,7 @@ function updateScore(dt){
   const gain = score - popRef;
   if (gain < TUNE.score.popMin || clock - popT < .4) return;
   const big = largest();
-  if (big) addText(big.cx, big.cy - big.r - 14, '+' + Math.round(gain).toLocaleString(), '#efe8da', clamp(18 + Math.sqrt(gain) * .5, 22, 42), .9);
+  if (big) addText(big.cx, big.cy - big.r - 14, '+' + Math.round(gain).toLocaleString(), `rgb(${C_PAPER})`, clamp(18 + Math.sqrt(gain) * .5, 22, 42), .9);
   popRef = score; popT = clock;
 }
 function updateGame(dt){
@@ -1440,27 +1548,35 @@ function startGame(){
   reset();
   state = 'count'; countT = TUNE.round.ready;
   setPaused(false);
-  $('startOv').hidden = true; $('endOv').hidden = true;
-  banner('READY', '', 'big');
+  showOverlay(null);
+  banner('よーい', '', 'big');
 }
 function beginPlay(){
   state = 'play';
   score = popRef = areaNow();   // 開始時点の大きさは盤面の数字に出さない
-  banner('GO', '', 'big');
+  banner('はじめ！', '', 'big');
   sGo(); startBgm();
 }
 function timeUp(){
   state = 'finish'; finishT = 1.4; slowT = .7;
   finalMM = largestMM();
   spoon = null; doubling = [];
-  banner('TIME UP', '', 'big');
+  banner('そこまで！', '', 'big');
   stopBgm(); sEnd();
+}
+// 画面（タイトル・結果・一時停止）の出し入れ。出す画面は1つだけで、id が null なら全部しまう。
+// 出したら主ボタンにフォーカスを当て（キーボードだけでも進められるように）、しまうときは外す（スペースで箸を開く操作がボタンに取られないように）
+const OVERLAYS = { startOv: 'startBtn', endOv: 'retryBtn', pauseOv: 'resumeBtn' };
+function showOverlay(id){
+  for (const k in OVERLAYS) $(k).hidden = k !== id;
+  if (id){ const b = $(OVERLAYS[id]); if (!b.disabled) b.focus({ preventScroll: true }); }
+  else if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
 }
 function setPaused(v){
   if (v && state !== 'play' && state !== 'count') return;
   if (v === paused) return;
   paused = v; pressed = false; openBtnHeld = false;
-  $('pauseOv').hidden = !v;
+  showOverlay(v ? 'pauseOv' : null);
   if (A.master) A.master.gain.setTargetAtTime(v || A.muted ? 0 : .8, A.ac.currentTime, .02);
 }
 function gradeOf(total){ return TUNE.grades.find(g => total >= g[1]); }
@@ -1470,18 +1586,19 @@ function showResult(){
   const isNew = total > bestScore;
   if (isNew){ bestScore = total; save('aburaBestArea', bestScore); }
   const g = gradeOf(total);
-  const gr = $('rGrade'); gr.textContent = g[0]; gr.className = 'grade g-' + g[0];
-  $('rTitle').innerHTML = `${g[2]}<small>${g[3]}</small>`;
+  const gr = $('rGrade'); gr.textContent = g[4]; gr.className = 'hanko g-' + g[0];
+  gr.setAttribute('aria-label', `ランク ${g[4]}`);
+  $('rTitle').innerHTML = `${g[3]}<small>${g[2]}</small>`;
   $('rSize').textContent = `${finalMM.toFixed(1)}mm / ${tierName(finalMM)}`;
   $('rDouble').textContent = `${doubles} 回`;
   $('rSpoon').textContent = `${spoonSafe} / ${spoonSafe + spoonHit}`;
   $('rBest').textContent = bestScore.toLocaleString() + ' mm²';
   $('rNew').hidden = !isNew || total <= 0;
   const idx = TUNE.grades.indexOf(g);
-  $('rNext').textContent = idx > 0 ? `次のランク ${TUNE.grades[idx - 1][0]} まで あと ${(TUNE.grades[idx - 1][1] - total).toLocaleString()} mm²` : '最高ランクに到達';
+  $('rNext').textContent = idx > 0 ? `次の「${TUNE.grades[idx - 1][4]}」まで あと ${(TUNE.grades[idx - 1][1] - total).toLocaleString()} mm²` : 'いちばん上の「極」に到達';
   $('tBest').textContent = bestScore.toLocaleString();
   countUp($('rTotal'), total, 1000, 300);
-  $('endOv').hidden = false;
+  showOverlay('endOv');
   resultAt = performance.now();
 }
 function countUp(el, to, dur, delay){
@@ -1519,7 +1636,7 @@ function drawSticks(){
     g.addColorStop(0, '#070403'); g.addColorStop(.32, '#2e201b'); g.addColorStop(.47, '#8a6c60'); g.addColorStop(.6, '#2a1c17'); g.addColorStop(1, '#050302');
     stickSeg(s, 0, 1100, 0, 0, 0, 0); cx.fillStyle = g; cx.fill();
     cx.beginPath(); cx.arc(s.sx, s.sy, 3, 0, TAU); cx.fill();
-    stickSeg(s, 560, 580, 0, 0, 0, 0); cx.fillStyle = '#d7261c'; cx.fill();
+    stickSeg(s, 560, 580, 0, 0, 0, 0); cx.fillStyle = `rgb(${C_SHU})`; cx.fill();
     stickSeg(s, 590, 595, 0, 0, 0, 0); cx.fill();
     // スープに浸かっている部分（油に当たる範囲）は濡れた色にする
     stickSeg(s, 0, STICK_LEN, 0, 0, 0, 0); cx.fillStyle = `rgba(170,95,40,${.3 * (1 - liftV)})`; cx.fill();
@@ -1533,11 +1650,11 @@ function drawMarker(){
   // いちばん大きい油（レンゲが狙い、点数になる玉）に細い輪を付ける
   const big = largest();
   if (big && big.cn >= 6){
-    cx.strokeStyle = 'rgba(239,232,218,.5)'; cx.lineWidth = 2;
-    cx.beginPath(); cx.arc(big.cx, big.cy, big.r + 12, 0, TAU); cx.stroke();
+    cx.strokeStyle = `rgba(${C_PAPER},.6)`; cx.lineWidth = 2; cx.setLineDash([7, 7]);
+    cx.beginPath(); cx.arc(big.cx, big.cy, big.r + 12, 0, TAU); cx.stroke(); cx.setLineDash([]);
   }
   // 特殊な油は効果を文字で添える。消える直前は点滅
-  cx.textAlign = 'center'; cx.textBaseline = 'alphabetic'; cx.font = `italic ${Math.round(18 * uiK)}px ${NUMFONT}`; cx.lineJoin = 'round';
+  cx.textAlign = 'center'; cx.textBaseline = 'alphabetic'; cx.font = `${Math.round(18 * uiK)}px ${NUMFONT}`; cx.lineJoin = 'round';
   for (const B of blobs.values()){
     if (!B.special || (B.sLife < 3 && Math.sin(clock * 20) < 0)) continue;
     const col = B.special === 'red' ? 'rgb(235,70,55)' : 'rgb(255,214,110)', rr = B.r + 12;
@@ -1623,14 +1740,14 @@ function drawSpoon(){
   const sp = spoon;
   if (sp.phase === 'warn'){
     const k = sp.t / sp.dur, pulse = .5 + .5 * Math.sin(clock * 18);
-    cx.fillStyle = `rgba(215,38,28,${.07 + .08 * pulse})`;
+    cx.fillStyle = `rgba(201,51,31,${.07 + .08 * pulse})`;
     cx.beginPath(); cx.arc(sp.x, sp.y, sp.r, 0, TAU); cx.fill();
     cx.setLineDash([16, 10]); cx.lineDashOffset = clock * 60;
-    cx.strokeStyle = 'rgba(215,38,28,.95)'; cx.lineWidth = 4; cx.stroke(); cx.setLineDash([]);
-    cx.strokeStyle = 'rgba(239,232,218,.95)'; cx.lineWidth = 7; cx.lineCap = 'round';
+    cx.strokeStyle = 'rgba(201,51,31,.95)'; cx.lineWidth = 4; cx.stroke(); cx.setLineDash([]);
+    cx.strokeStyle = `rgba(${C_PAPER},.95)`; cx.lineWidth = 7; cx.lineCap = 'round';
     cx.beginPath(); cx.arc(sp.x, sp.y, sp.r + 14, -Math.PI / 2, -Math.PI / 2 + TAU * (1 - k)); cx.stroke();
-    cx.font = `italic 56px ${NUMFONT}`; cx.textAlign = 'center'; cx.textBaseline = 'middle';
-    cx.fillStyle = `rgba(215,38,28,${.6 + .4 * pulse})`; cx.fillText('!', sp.x, sp.y);
+    cx.font = `72px ${NUMFONT}`; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+    cx.fillStyle = `rgba(201,51,31,${.6 + .4 * pulse})`; cx.fillText('!', sp.x, sp.y);
     cx.textBaseline = 'alphabetic';
     drawRenge(sp.x, sp.y, sp.r, 1.6 - k * .6, k, false, true);
   } else if (sp.phase === 'dip'){
@@ -1657,7 +1774,7 @@ function drawTexts(){
     cx.save(); cx.translate(t.x, t.y - k * 44); cx.scale(sc, sc);
     cx.globalAlpha = a;
     const fs = t.size * uiK;
-    cx.font = `italic ${fs}px ${NUMFONT}`;
+    cx.font = `${fs}px ${NUMFONT}`;
     cx.lineWidth = Math.max(4, fs * .14); cx.strokeStyle = 'rgba(10,8,6,.8)'; cx.lineJoin = 'round';
     cx.strokeText(t.s, 0, 0);
     cx.fillStyle = t.col; cx.fillText(t.s, 0, 0);
@@ -1822,13 +1939,16 @@ muteBtn.addEventListener('click', () => {
   A.muted = !A.muted; ensureAudio();
   if (A.master) A.master.gain.setTargetAtTime(A.muted || paused ? 0 : .8, A.ac.currentTime, .02);
   muteBtn.innerHTML = A.muted ? ICON_OFF : ICON_ON;
+  muteBtn.blur();   // フォーカスを残すと、スペース（箸を開く）でこのボタンが押されてしまう
 });
 
 $('tBest').textContent = bestScore.toLocaleString();
+// 盤面（canvas）に描く文字の書体を先に読み込んでおく。読み込みが終わるまでは代替の書体で描かれる
+if (document.fonts && document.fonts.load) document.fonts.load(`32px ${NUMFONT}`, '0123456789+,.!倍秒').catch(() => {});
 initGL();
 new ResizeObserver(resize).observe(stage);
 resize();
-// 物理エンジンの読み込みが終わってから盤面を作り、STARTを押せるようにする
-bootPhysics().then(() => { reset(); $('startBtn').disabled = false; requestAnimationFrame(frame); })
+// 物理エンジンの読み込みが終わってから盤面を作り、「はじめる」を押せるようにする
+bootPhysics().then(() => { reset(); $('startBtn').disabled = false; showOverlay('startOv'); requestAnimationFrame(frame); })
   .catch(e => { console.error(e); $('loadErr').hidden = false; });
 </script>
