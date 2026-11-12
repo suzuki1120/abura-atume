@@ -1,0 +1,8 @@
+{
+  // Cloudflare Workers の静的アセット配信で index.html と vendor/ を公開する
+  "name": "abura-atsume",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./"
+  }
+}

@@ -21,6 +21,37 @@ MAMP の htdocs 配下に置いているので、MAMP を起動している場�
 - PC（マウス・キーボード）とスマートフォン（タッチ）の両方に対応
 - フォントは Google Fonts から読み込みます。題字・数字・ボタンは Dela Gothic One、筆文字の見出しは Yuji Syuku です。オフラインでは端末の代替フォントで表示されます
 
+## 公開（デプロイ）
+
+Cloudflare Workers の静的アセット配信で公開しています。
+
+- 公開URL: https://abura-atsume.kiraides.workers.dev/
+- Worker 名: `abura-atsume`（設定は `wrangler.jsonc`）
+
+GitHub に push しても公開サイトは更新されません。変更を公開するときは、リポジトリ直下で次のコマンドを実行します。
+
+```bash
+npx wrangler deploy
+```
+
+公開されるのは `index.html` と `vendor/` だけです。`.git`、`.claude`、`README.md`、設定ファイルなどは `.assetsignore` で除外しています。公開したいファイルを増やすときは、`.assetsignore` に載っていないか確認してください。
+
+### 初回・ログインが切れたとき
+
+`wrangler deploy` が「login required」などで止まる場合は、Cloudflare にログインし直します。ブラウザに許可画面が開くので、kiraides のアカウントで許可してください。
+
+```bash
+npx wrangler login
+```
+
+### 反映の確認
+
+公開URLの HTML がローカルの `index.html` と一致すれば反映済みです。
+
+```bash
+curl -s "https://abura-atsume.kiraides.workers.dev/?v=$(date +%s)" | cmp - index.html && echo "反映済み"
+```
+
 ## 画面の見た目
 
 カウンター席から丼を見下ろしている設定です。盤面は塗りのお盆、HUD は木札、タイトルはのれん、結果は伝票とはんこで表しています。
@@ -125,6 +156,10 @@ MAMP の htdocs 配下に置いているので、MAMP を起動している場�
 │   ├── Box2D.js                   # LiquidFun（WebAssembly 版）を呼び出すための JavaScript
 │   ├── Box2D.wasm.js              # LiquidFun 本体（Box2D.wasm）を base64 の文字列にしたもの
 │   └── LICENSE.zlib.txt           # ライセンス
+├── wrangler.jsonc                 # Cloudflare Workers へのデプロイ設定
+├── .assetsignore                  # デプロイ時に公開しないファイルの一覧
+├── .gitignore                     # Wrangler の作業フォルダ（.wrangler/）を Git から除外
+├── CLAUDE.md                      # Claude Code 向けの作業メモ（デプロイ手順など）
 └── .claude/launch.json            # Claude Code 用のローカルサーバー起動設定
 ```
 
